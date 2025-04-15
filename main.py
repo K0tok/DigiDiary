@@ -4,8 +4,6 @@ import json
 
 bot = telebot.TeleBot(config.TG_API_TOKEN)
 
-users = {}
-
 keyboard1 = telebot.types.ReplyKeyboardMarkup(True)
 
 keyboard_commands = telebot.types.ReplyKeyboardMarkup(True)
@@ -17,25 +15,14 @@ noButton = telebot.types.InlineKeyboardButton("Нет", callback_data="no")
 simpleAnswerKeyboard.row(yesButton, noButton)
 
 
-def user_add(userId, groupId):
-    data = {"user_id": userId, "group_id": groupId}
-    with open("data/users.txt", "w") as json_file:
-        json.dump(data, json_file)
+# def user_add(userId, groupId):
 
-
-def users_update():
-    global users
-    with open("data/users.txt") as json_file:
-        users = json.load(json_file)
+# def users_update():
 
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
-    global users
-    users_update()
     bot.send_message(message.chat.id, "Добро пожаловать в ЭДС!", reply_markup=keyboard1)
-    if message.from_user.id not in users[1]:
-        user_add(message.from_user.id, None)
 
 
 @bot.message_handler(commands=["help"])
