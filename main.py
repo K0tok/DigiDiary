@@ -18,12 +18,15 @@ simpleAnswerKeyboard.row(yesButton, noButton)
 # def user_add(userId, groupId):
 
 # def users_update():
-
+user_id = 1
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
+    global user_id
     bot.send_message(message.chat.id, "Добро пожаловать в ЭДС!", reply_markup=keyboard1)
-
+    bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
+    user_id = message.from_user.id
+    bot.send_message(message.chat.id, f'Ваш айди: {user_id}')
 
 @bot.message_handler(commands=["help"])
 def send_welcome(message):
