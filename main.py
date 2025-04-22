@@ -17,7 +17,12 @@ simpleAnswerKeyboard.row(yesButton, noButton)
 
 # def user_add(userId, groupId):
 
-# def users_update():
+# def users_update(): tsgrsvstb
+# sdcsdcsd or
+# uoijluhi
+# yuigko
+
+
 user_id = 1
 
 @bot.message_handler(commands=["start"])
