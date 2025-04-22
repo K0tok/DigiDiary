@@ -71,7 +71,7 @@ class Timetable(pw.Model):            # Расписание звонков
         db_table = "timetable"
 
 
-class Lesson(pw.Model):                # Пары vsewrverferwf
+class Lesson(pw.Model):                # Пары
     id = pw.PrimaryKeyField()
     group_id = pw.ForeignKeyField(Group)
     day_of_week = pw.CharField(20)

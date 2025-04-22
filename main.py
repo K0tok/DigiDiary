@@ -17,11 +17,7 @@ simpleAnswerKeyboard.row(yesButton, noButton)
 
 # def user_add(userId, groupId):
 
-# def users_update(): tsgrsvstb
-# sdcsdcsd or
-# uoijluhi
-# yuigko
-
+# def users_update(): 
 
 user_id = 1
 
