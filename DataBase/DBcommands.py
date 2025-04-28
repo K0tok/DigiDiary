@@ -20,6 +20,7 @@ def select_users_tgId():
             return Rows
     except Exception as e:
         print('select_users_tgId error:\n', e)
+        return []
 
 def select_user(tgId):
     try:
@@ -27,6 +28,7 @@ def select_user(tgId):
             return model_to_dict(User.get(User.tgId == tgId))
     except Exception as e:
         print('select_user error:\n', e)
+        return []
 
 def update_user(tgId, name = None):
     try:
@@ -46,3 +48,4 @@ def delete_user(tgId):
             return f"Пользователь {tgId} удалён."
     except Exception as e:
         print("delete_user error:\n", e)
+        return ''
