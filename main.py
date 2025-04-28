@@ -1,7 +1,7 @@
 import telebot
 import config
 from DataBase import *
-
+from functions import *
 
 bot = telebot.TeleBot(config.TG_API_TOKEN)
 
@@ -14,6 +14,8 @@ simpleAnswerKeyboard = telebot.types.InlineKeyboardMarkup()
 yesButton = telebot.types.InlineKeyboardButton("Да", callback_data="yes")
 noButton = telebot.types.InlineKeyboardButton("Нет", callback_data="no")
 simpleAnswerKeyboard.row(yesButton, noButton)
+
+url = "https://nti.urfu.ru/api/schedule/nti/1/1/4"
 
 # @bot.message_handler(commands=["admin_test"])
 # def test(message): 
@@ -40,6 +42,29 @@ def send_welcome(message):
     else:
         bot.send_message(message.chat.id, f"Рады видеть вас снова, {message.from_user.first_name}!", reply_markup=keyboard1)
         # bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
+
+
+@bot.message_handler(commands=["schedule"])
+def send_schedule(message):
+        global url
+        # Разбираем текст сообщения
+        command, *args = message.text.split()
+        if len(args) < 1:
+            bot.reply_to(message, "Пожалуйста, укажите название группы. Пример: /schedule Т-143901-ИСТ")
+            return
+        
+        group_name = args[0].upper()  # Название группы
+        today_only = False
+        
+        # Проверяем, запрошено ли расписание только на сегодня
+        if len(args) > 1 and args[1].lower() == "today":
+            today_only = True
+        
+        # Получаем расписание
+        schedule_text = get_schedule(url, group_name, today_only)
+        
+        # Отправляем расписание пользователю
+        bot.reply_to(message, schedule_text)
 
 
 @bot.message_handler(commands=["help"])

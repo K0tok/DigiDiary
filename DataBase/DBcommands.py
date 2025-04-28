@@ -1,6 +1,7 @@
 from .models import *
 from datetime import datetime, date
 from playhouse.shortcuts import model_to_dict
+from functions.functions import get_groups
 
 def add_user(tgId, name = None, created_at = datetime.now()):
     try:
@@ -49,3 +50,12 @@ def delete_user(tgId):
     except Exception as e:
         print("delete_user error:\n", e)
         return ''
+    
+def create_group(name):
+    try:
+        with db:
+            group = Group(name = name)
+            group.save()
+
+    except Exception as e:
+        print('create_group error:\n', e)
