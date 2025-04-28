@@ -1,6 +1,7 @@
 import telebot
 import config
-import json
+from DataBase import add_user
+
 
 bot = telebot.TeleBot(config.TG_API_TOKEN)
 
@@ -14,20 +15,15 @@ yesButton = telebot.types.InlineKeyboardButton("Да", callback_data="yes")
 noButton = telebot.types.InlineKeyboardButton("Нет", callback_data="no")
 simpleAnswerKeyboard.row(yesButton, noButton)
 
-
-# def user_add(userId, groupId):
-
-# def users_update(): 
-
-user_id = 1
-
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     global user_id
     bot.send_message(message.chat.id, "Добро пожаловать в ЭДС!", reply_markup=keyboard1)
     bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
     user_id = message.from_user.id
-    bot.send_message(message.chat.id, f'Ваш айди: {user_id}')
+    user_name = message.from_user.first_name if message.from_user.last_name != None else "" + message.from_user.last_name if message.from_user.last_name != None else ""
+    add_user(user_id, user_name)
+
 
 @bot.message_handler(commands=["help"])
 def send_welcome(message):

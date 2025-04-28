@@ -1,16 +1,18 @@
 import peewee as pw
+import datetime
 
-db = pw.SqliteDatabase("DB.db")
+db = pw.SqliteDatabase("DataBase/DB.db")
 
 class User(pw.Model):               # Пользователи
-    id = pw.PrimaryKeyField()
-    tgId = pw.IntegerField()
+    id = pw.AutoField()
+    tgId = pw.IntegerField(unique=True)
     name = pw.CharField(60)
-    created_at = pw.DateTimeField()
+    created_at = pw.DateTimeField(default=datetime.datetime.now)
 
     class Meta:
         database = db
         db_table = "users"
+
 
 class Group(pw.Model):             # Группы
     id = pw.PrimaryKeyField()
@@ -22,7 +24,7 @@ class Group(pw.Model):             # Группы
 
 class Union(pw.Model):             # Объединения
     id = pw.PrimaryKeyField()
-    tgId = pw.IntegerField()
+    tgId = pw.IntegerField(unique=True)
     name = pw.CharField(60)
     created_by = pw.ForeignKeyField(User)
     invite_code = pw.CharField(100)
@@ -46,7 +48,7 @@ class Homework(pw.Model):            # Домашние задания
     subject_id = pw.ForeignKeyField(Subject)
     due_date = pw.DateTimeField()
     description = pw.CharField()
-    created_at = pw.DateTimeField()
+    created_at = pw.DateTimeField(default=datetime.datetime.now)
 
     class Meta:
         database = db
