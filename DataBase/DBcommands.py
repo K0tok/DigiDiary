@@ -1,5 +1,6 @@
 from .models import *
 from datetime import datetime, date
+from playhouse.shortcuts import model_to_dict
 
 def add_user(tgId, name = None, created_at = datetime.now()):
     try:
@@ -10,14 +11,22 @@ def add_user(tgId, name = None, created_at = datetime.now()):
     except Exception as e:
         print('add_user error:\n', e)
 
-def select_users():
+def select_users_tgId():
     try: 
         with db:
-            Users = User.select()
-            for u in Users:
-                print( u.id, u.tgId, u.name, u.created_at)
+            Rows = []
+            for u in User.select():
+                Rows.append(u.tgId)
+            return Rows
     except Exception as e:
-        print('select_users error:\n', e)
+        print('select_users_tgId error:\n', e)
+
+def select_user(tgId):
+    try:
+        with db:
+            return model_to_dict(User.get(User.tgId == tgId))
+    except Exception as e:
+        print('select_user error:\n', e)
 
 def update_user(tgId, name = None):
     try:

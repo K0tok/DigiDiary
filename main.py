@@ -1,6 +1,6 @@
 import telebot
 import config
-from DataBase import add_user
+from DataBase import *
 
 
 bot = telebot.TeleBot(config.TG_API_TOKEN)
@@ -15,14 +15,31 @@ yesButton = telebot.types.InlineKeyboardButton("Да", callback_data="yes")
 noButton = telebot.types.InlineKeyboardButton("Нет", callback_data="no")
 simpleAnswerKeyboard.row(yesButton, noButton)
 
+# @bot.message_handler(commands=["admin_test"])
+# def test(message): 
+    # print(message.from_user.id,
+    #     message.from_user.first_name,
+    #     message.from_user.last_name,
+    #     message.from_user.username)
+
+    # user_first_name = message.from_user.first_name if message.from_user.first_name != None else ""
+    # user_last_name = message.from_user.last_name if message.from_user.last_name != None else ""
+    # user_name = user_first_name + user_last_name
+    # print(user_name)
+
 @bot.message_handler(commands=["start"])
-def send_welcome(message):
-    global user_id
-    bot.send_message(message.chat.id, "Добро пожаловать в ЭДС!", reply_markup=keyboard1)
-    bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
+def send_welcome(message): 
     user_id = message.from_user.id
-    user_name = message.from_user.first_name if message.from_user.last_name != None else "" + message.from_user.last_name if message.from_user.last_name != None else ""
-    add_user(user_id, user_name)
+    if user_id not in select_users_tgId():
+        bot.send_message(message.chat.id, "Добро пожаловать в ЭДС!", reply_markup=keyboard1)
+        # bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
+        user_first_name = message.from_user.first_name if message.from_user.first_name != None else ""
+        user_last_name = message.from_user.last_name if message.from_user.last_name != None else ""
+        user_name = user_first_name + user_last_name if user_first_name + user_last_name != "" else message.from_user.username
+        add_user(user_id, user_name)
+    else:
+        bot.send_message(message.chat.id, f"Рады видеть вас снова, {message.from_user.first_name}!", reply_markup=keyboard1)
+        # bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
 
 
 @bot.message_handler(commands=["help"])
