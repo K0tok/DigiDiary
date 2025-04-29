@@ -46,21 +46,27 @@ def get_schedule(url, group_name, today_only=False):
             week_index = 0 if is_numerator(current_date) else 1
 
             if today_only:
-                result.append(f"Расписание для группы '{group_name}' на {current_day}:")
+                result.append(f"Расписание для группы <b>'{group_name}'</b> на <i>{current_day}</i>:")
                 if current_day in schedule[week_index]:
                     day_schedule = schedule[week_index][current_day]
+                    result.append(f"<blockquote><i>{current_day}</i>:")
                     for num, lessons in day_schedule.items():
-                        result.append(f"{num}:")
+                        result.append(f"<b>{num}</b>:")
                         for lesson in lessons:
-                            result.append(f"  - {lesson['n']} (ауд. {lesson['a']}, преп. {lesson['p']})")
+                            result.append(f"  - {lesson['n']} (ауд. <b>{lesson['a']}</b>, преп. <b>{lesson['p']}</b>)")
+                    result.append(f"</blockquote>")
+
+                else:
+                    result.append("\nСегодня нет пар!")
             else:
-                result.append(f"Расписание для группы '{group_name}' на неделю ({'числитель' if week_index == 0 else 'знаменатель'}):")
-                for day, day_schedule in schedule[week_index].items():
-                    result.append(f"\n{day}:")
+                result.append(f"Расписание для группы <b>'{group_name}'</b> на неделю ({'<i>числитель</i>' if week_index == 0 else '<i>знаменатель</i>'}):")
+                for day_of_week, day_schedule in schedule[week_index].items():
+                    result.append(f"<blockquote expandable><i>{day_of_week}</i>:")
                     for num, lessons in day_schedule.items():
-                        result.append(f"  {num}:")
+                        result.append(f"<b>{num}</b>:")
                         for lesson in lessons:
-                            result.append(f"    - {lesson['n']} (ауд. {lesson['a']}, преп. {lesson['p']})")
+                            result.append(f"  - {lesson['n']} (ауд. <b>{lesson['a']}</b>, преп. <b>{lesson['p']}</b>)")
+                    result.append(f"</blockquote>")
             
             return "\n".join(result)
         else:

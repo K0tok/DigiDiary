@@ -59,3 +59,20 @@ def create_group(name):
 
     except Exception as e:
         print('create_group error:\n', e)
+
+def select_group(id):
+    try:
+        with db:
+            return model_to_dict(Group.get(User.id == id))
+    except Exception as e:
+        print('select_group error:\n', e)
+        return []
+    
+def select_groups():
+    try: 
+        with db:
+            groups = [group for group in Group.select().dicts()]
+            return groups
+    except Exception as e:
+        print('select_users_tgId error:\n', e)
+        return []
