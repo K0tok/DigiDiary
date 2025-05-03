@@ -52,7 +52,9 @@ def send_schedule(call):
     today_only = True if call.data.split("_")[2] == "today" else False
 
     schedule_text = get_schedule(url, group_name, today_only)
-
+    
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    bot.delete_message(call.message.chat.id, call.message.message_id - 1)
     bot.send_message(call.message.chat.id, schedule_text)
 
     bot.answer_callback_query(call.id)
