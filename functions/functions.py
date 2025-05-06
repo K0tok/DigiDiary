@@ -4,7 +4,7 @@ from datetime import datetime
 from DataBase import select_group
 
 NUMERATOR_DATES = ["2025-04-07", "2025-04-21", "2025-05-05", "2025-05-19"]
-def is_numerator(current_date):
+def is_numerator(current_date = datetime.now()):
     return current_date.strftime("%Y-%m-%d") in NUMERATOR_DATES
 
 def get_groups(url):
@@ -27,7 +27,7 @@ def get_groups(url):
         print(f"Произошла ошибка при выполнении запроса: {e}")
         return []
 
-def get_schedule(url, group_id, today_only=False):
+def get_schedule(url, group_id, isNumerator, today_only=False):
     try:
         # Выполняем GET-запрос к указанному URL
         response = requests.get(url)
@@ -43,10 +43,17 @@ def get_schedule(url, group_id, today_only=False):
             schedule = data[group_name]
             days_of_week = ["ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА", "ВОСКРЕСЕНЬЕ"]
             current_day = days_of_week[datetime.now().weekday()]
-            current_date = datetime.now()
             result = []
 
-            week_index = 1 if is_numerator(current_date) else 0
+            if isNumerator == -1:
+                if is_numerator():
+                    week_index = 1
+                else:
+                    week_index = 0
+            elif isNumerator == 1:
+                week_index = 1
+            elif isNumerator == 0:
+                week_index = 0
 
             if today_only:
                 result.append(f"Расписание для группы <b>'{group_name}'</b> на <i>{current_day}</i>:")

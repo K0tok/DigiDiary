@@ -40,7 +40,7 @@ def send_schedule_simple(message):
             
             group_id = select_group_by_name(group_name)['id']
             # Получаем расписание
-            schedule_text = get_schedule(url, group_id, today_only)
+            schedule_text = get_schedule(url, group_id, -1, today_only)
             
             # Отправляем расписание пользователю
             bot.reply_to(message, schedule_text)
@@ -103,12 +103,19 @@ def create_unionMember(call):
 def send_schedule(call):
     group_id = call.data.split("_")[1]
     today_only = True if call.data.split("_")[2] == "today" else False
+    if call.data.split("_")[3] == "numerator":
+        is_numerator = 1 
+    elif call.data.split("_")[3] == "denominator":
+        is_numerator = 0 
+    else:
+        is_numerator = -1
 
-    schedule_text = get_schedule(url, group_id, today_only)
+    schedule_text = get_schedule(url, group_id, is_numerator, today_only)
     
     bot.delete_message(call.message.chat.id, call.message.message_id)
-    bot.delete_message(call.message.chat.id, call.message.message_id - 1)
-    bot.send_message(call.message.chat.id, schedule_text)
+    if is_numerator == -1:
+        bot.delete_message(call.message.chat.id, call.message.message_id - 1)
+    bot.send_message(call.message.chat.id, schedule_text, reply_markup=keyboard_numerator(is_numerator, group_id))
 
     bot.answer_callback_query(call.id)
 

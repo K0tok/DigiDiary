@@ -1,5 +1,5 @@
 import telebot
-from Functions import get_groups
+from Functions import get_groups, is_numerator
 from DataBase import select_groups, select_user_groups, select_union_groups
 
 keyboard_commands = telebot.types.ReplyKeyboardMarkup(True)
@@ -12,6 +12,7 @@ simpleAnswerKeyboard = telebot.types.InlineKeyboardMarkup()
 yesButton = telebot.types.InlineKeyboardButton("Да", callback_data="yes")
 noButton = telebot.types.InlineKeyboardButton("Нет", callback_data="no")
 simpleAnswerKeyboard.row(yesButton, noButton)
+
 
 def create_keyboard_groups(dayType = None, chat_id = None):
     # Определяем расписание запрошено в беседе или в личных сообщениях
@@ -36,9 +37,9 @@ def create_keyboard_groups(dayType = None, chat_id = None):
             button_text = group_name
         
         if dayType == 'today':
-            button_callback = f"group_{group['id']}_today"
+            button_callback = f"group_{group['id']}_today_default"
         elif dayType == 'week':
-            button_callback = f"group_{group['id']}_week"
+            button_callback = f"group_{group['id']}_week_default"
         else:
             button_callback = f"groupId_{group['id']}"
 
@@ -50,3 +51,26 @@ def create_keyboard_groups(dayType = None, chat_id = None):
 
     keyboard_groups.add(*buttons)
     return keyboard_groups
+
+
+def keyboard_numerator(isNumerator, group_id):
+    keyboard_numerator = telebot.types.InlineKeyboardMarkup(row_width=1)
+    if isNumerator == -1:
+        if is_numerator():
+            button_text = 'Сменить на: Числитель'
+            button_callback = f"group_{group_id}_week_denominator"
+        else:
+            button_text = 'Сменить на: Знаменатель'
+            button_callback = f"group_{group_id}_week_numerator"
+    elif isNumerator == 1:
+        button_text = 'Сменить на: Числитель'
+        button_callback = f"group_{group_id}_week_denominator"
+    elif isNumerator == 0:
+        button_text = 'Сменить на: Знаменатель'
+        button_callback = f"group_{group_id}_week_numerator"
+    button = telebot.types.InlineKeyboardButton(
+        text=button_text,
+        callback_data=button_callback
+    )
+    keyboard_numerator.add(button)
+    return keyboard_numerator
