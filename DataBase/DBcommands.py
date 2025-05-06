@@ -1,7 +1,17 @@
 from .models import *
-from datetime import datetime, date
+from datetime import datetime
 from playhouse.shortcuts import model_to_dict
-from functions.functions import get_groups
+
+
+def add_bell(lesson_name, time_start, time_end, is_saturday = False):
+    try:
+        with db:
+            bell = Timetable(lesson_name = lesson_name, time_start = time_start, time_end = time_end, is_saturday = is_saturday)
+            bell.save()
+
+    except Exception as e:
+        print('add_bell error:\n', e)
+
 
 def add_user(tgId, name = None, created_at = datetime.now()):
     try:
@@ -68,6 +78,14 @@ def select_group(id):
         print('select_group error:\n', e)
         return []
     
+def select_group_by_name(name):
+    try:
+        with db:
+            return model_to_dict(Group.get(Group.name == name))
+    except Exception as e:
+        print('select_group_by_name error:\n', e)
+        return []
+    
 def select_groups():
     try: 
         with db:
@@ -90,15 +108,33 @@ def select_unions_tgId():
         return []
     
 
-def create_union(tgId, name, created_by_id, invite_code):
+def create_union(tgId, name, created_by_id):
     try: 
         with db:
-            union = Union(tgId = tgId, name = name, created_by_id = created_by_id, invite_code = invite_code)
+            union = Union(tgId = tgId, name = name, created_by_id = created_by_id)
             union.save()
-
+        return True
     except Exception as e:
         print('create_union error:\n', e)
+        return False
     
+
+def select_union_groups(union_id):
+    try:
+        with db:
+            user_groups = []
+
+            union_groups = UnionGroup.select().where(UnionGroup.union_id == union_id).dicts()
+
+            for g in union_groups:
+                user_groups.append(g['group_id'])
+            return user_groups
+
+    except Exception as e:
+        print('select_union_groups error:\n', e)  
+        return []
+
+
 def add_union_to_group(union_id, group_id):
     try:
         with db:
@@ -107,6 +143,7 @@ def add_union_to_group(union_id, group_id):
     except Exception as e:
         print('add_union_to_group error:\n', e)  
 
+
 def add_user_to_union(user_id, union_id):
     try:
         with db:
@@ -114,6 +151,7 @@ def add_user_to_union(user_id, union_id):
             unionMember.save()
     except Exception as e:
         print('add_user_to_union error:\n', e)  
+
 
 def select_user_groups(user_id):
     try:

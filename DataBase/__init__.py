@@ -1,1 +1,16 @@
-from .DBcommands import add_user, update_user, select_users_tgId, delete_user, select_user, create_group, select_group, select_groups, select_unions_tgId, create_union, add_union_to_group, add_user_to_union, select_user_groups
+from .DBcommands import (add_bell, 
+                        add_user, 
+                        update_user, 
+                        select_users_tgId, 
+                        delete_user, 
+                        select_user, 
+                        create_group, 
+                        select_group, 
+                        select_groups, 
+                        select_unions_tgId, 
+                        create_union, 
+                        add_union_to_group, 
+                        add_user_to_union, 
+                        select_user_groups, 
+                        select_group_by_name, 
+                        select_union_groups)

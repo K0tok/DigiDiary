@@ -27,7 +27,6 @@ class Union(pw.Model):             # Объединения
     tgId = pw.IntegerField(unique=True)
     name = pw.CharField(60)
     created_by = pw.ForeignKeyField(User)
-    invite_code = pw.CharField(100)
 
     class Meta:
         database = db
@@ -65,8 +64,9 @@ class Teacher(pw.Model):              # Преподаватели
 class Timetable(pw.Model):            # Расписание звонков
     lesson_number = pw.PrimaryKeyField()
     lesson_name = pw.CharField(10)
-    time_start = pw.TimestampField()
-    time_end = pw.TimestampField()
+    time_start = pw.TimeField()
+    time_end = pw.TimeField()
+    is_saturday = pw.BooleanField(default=False)
 
     class Meta:
         database = db
