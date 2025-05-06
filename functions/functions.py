@@ -73,3 +73,4 @@ def get_schedule(url, group_name, today_only=False):
             return f"Ошибка при запросе: {response.status_code}"
     except requests.exceptions.RequestException as e:
         return f"Произошла ошибка при выполнении запроса: {e}"
+    

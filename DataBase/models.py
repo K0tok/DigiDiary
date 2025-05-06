@@ -96,7 +96,7 @@ class UnionMember(pw.Model):            # Связи объединений и �
 
 class UnionGroup(pw.Model):            # Связи объединений и групп
     union_id = pw.ForeignKeyField(Union)
-    group_if = pw.ForeignKeyField(Group)
+    group_id = pw.ForeignKeyField(Group)
 
     class Meta:
         database = db

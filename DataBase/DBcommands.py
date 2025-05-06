@@ -63,7 +63,7 @@ def create_group(name):
 def select_group(id):
     try:
         with db:
-            return model_to_dict(Group.get(User.id == id))
+            return model_to_dict(Group.get(Group.id == id))
     except Exception as e:
         print('select_group error:\n', e)
         return []
@@ -75,4 +75,59 @@ def select_groups():
             return groups
     except Exception as e:
         print('select_users_tgId error:\n', e)
+        return []
+    
+
+def select_unions_tgId():
+    try: 
+        with db:
+            Rows = []
+            for u in Union.select():
+                Rows.append(u.tgId)
+            return Rows
+    except Exception as e:
+        print('select_unions_tgId error:\n', e)
+        return []
+    
+
+def create_union(tgId, name, created_by_id, invite_code):
+    try: 
+        with db:
+            union = Union(tgId = tgId, name = name, created_by_id = created_by_id, invite_code = invite_code)
+            union.save()
+
+    except Exception as e:
+        print('create_union error:\n', e)
+    
+def add_union_to_group(union_id, group_id):
+    try:
+        with db:
+            unionGroup = UnionGroup(union_id = union_id, group_id = group_id)
+            unionGroup.save()
+    except Exception as e:
+        print('add_union_to_group error:\n', e)  
+
+def add_user_to_union(user_id, union_id):
+    try:
+        with db:
+            unionMember = UnionMember(user_id = user_id, union_id = union_id)
+            unionMember.save()
+    except Exception as e:
+        print('add_user_to_union error:\n', e)  
+
+def select_user_groups(user_id):
+    try:
+        with db:
+            user_unions = UnionMember.select().where(UnionMember.user_id == user_id).dicts()
+            user_groups = []
+
+            for u in user_unions:
+                union_groups = UnionGroup.select().where(UnionGroup.union_id == u['union_id']).dicts()
+
+                for g in union_groups:
+                    user_groups.append(g['group_id'])
+            return user_groups
+
+    except Exception as e:
+        print('select_user_groups error:\n', e)  
         return []

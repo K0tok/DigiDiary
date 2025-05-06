@@ -27,10 +27,10 @@ def send_welcome(message):
 
 @bot.message_handler(commands=["schedule"])
 def send_schedule_simple(message):
-        # Разбираем текст сообщения
+        # Разбираем текст сообщения             ДОБАВИТЬ РАЗДЕЛЕНИЕ НА ЛИЧКУ И ЧАТ
         command, *args = message.text.split()
         if len(args) < 1:
-            bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=keyboard_groups_week)
+            bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=create_keyboard_groups('week', message.chat.id))
             return
         else: 
             group_name = args[0].upper()  # Название группы
@@ -45,6 +45,49 @@ def send_schedule_simple(message):
             
             # Отправляем расписание пользователю
             bot.reply_to(message, schedule_text)
+
+@bot.message_handler(commands=["union"])
+def create_union_message(message):
+    if message.chat.id < 0:
+        if message.chat.id not in select_unions_tgId():
+            try:
+                union_tgId, union_name, union_created_by_id, union_invite_code = message.chat.id, bot.get_chat(message.chat.id).title, message.from_user.id, bot.get_chat(message.chat.id).invite_link
+                create_union(union_tgId, union_name, union_created_by_id, union_invite_code)
+                bot.send_message(message.chat.id, "Чат успешно зарегистрирован. Теперь выберите к каким группам присоединить чат:", reply_markup=keyboard_groups)
+            except Exception as e:
+                bot.send_message(message.chat.id, "Возникла ошибка при регистрации группы.")
+                print(e)
+        else:
+            bot.send_message(message.chat.id, "Ваша группа уже зарегистрирована! Теперь выберите к каким группам присоединить чат:", reply_markup=keyboard_groups)
+    else:
+        bot.send_message(message.chat.id, "Эта функция доступна только в групповом чате.")
+
+@bot.message_handler(content_types=['new_chat_members'])
+def new_member(message):
+    if message.new_chat_members[0].id != '7000728406':
+        user_name = message.new_chat_members[0].first_name 
+        user_id = message.new_chat_members[0].id
+        bot.send_message(message.chat.id, "Добро пожаловать, {0}!".format(user_name))
+
+        if user_id not in select_users_tgId():
+            user_first_name = message.new_chat_members[0].first_name if message.new_chat_members[0].first_name != None else ""
+            user_last_name = message.new_chat_members[0].last_name if message.new_chat_members[0].last_name != None else ""
+            user_name = user_first_name + user_last_name if user_first_name + user_last_name != "" else message.new_chat_members[0].username
+            add_user(user_id, user_name)
+
+        add_user_to_union(user_id, message.chat.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("groupId_"))
+def create_unionMember(call):
+    group_id = call.data.split("_")[1]
+
+    add_union_to_group(call.message.chat.id, group_id)
+
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    bot.send_message(call.message.chat.id, f"Теперь ваш чат закреплен за группой {select_group(group_id)['name']}")
+
+    bot.answer_callback_query(call.id)
+
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("group_"))
 def send_schedule(call):
