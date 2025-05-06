@@ -1,6 +1,7 @@
 import requests
 import json
 from datetime import datetime 
+from DataBase import select_group
 
 NUMERATOR_DATES = ["2025-04-07", "2025-04-21", "2025-05-05", "2025-05-19"]
 def is_numerator(current_date):
@@ -26,11 +27,13 @@ def get_groups(url):
         print(f"Произошла ошибка при выполнении запроса: {e}")
         return []
 
-def get_schedule(url, group_name, today_only=False):
+def get_schedule(url, group_id, today_only=False):
     try:
         # Выполняем GET-запрос к указанному URL
         response = requests.get(url)
         
+        group_name = select_group(group_id)['name']
+
         if response.status_code == 200:
             data = response.json()
             
@@ -43,7 +46,7 @@ def get_schedule(url, group_name, today_only=False):
             current_date = datetime.now()
             result = []
 
-            week_index = 0 if is_numerator(current_date) else 1
+            week_index = 1 if is_numerator(current_date) else 0
 
             if today_only:
                 result.append(f"Расписание для группы <b>'{group_name}'</b> на <i>{current_day}</i>:")
@@ -74,3 +77,8 @@ def get_schedule(url, group_name, today_only=False):
     except requests.exceptions.RequestException as e:
         return f"Произошла ошибка при выполнении запроса: {e}"
     
+def create_user_name(first_name, last_name, username):
+    user_first_name = first_name if first_name != None else ""
+    user_last_name = last_name if last_name != None else ""
+    user_name = user_first_name + user_last_name if user_first_name + user_last_name != "" else username
+    return user_name

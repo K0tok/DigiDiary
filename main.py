@@ -1,7 +1,7 @@
 import telebot
 import config
 from DataBase import *
-from functions import *
+from Functions import *
 from keyboards import *
 
 bot = telebot.TeleBot(config.TG_API_TOKEN, parse_mode='HTML')
@@ -17,9 +17,7 @@ def send_welcome(message):
     if user_id not in select_users_tgId():
         bot.send_message(message.chat.id, "Добро пожаловать в ЭДС!", reply_markup=keyboard_commands)
         # bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
-        user_first_name = message.from_user.first_name if message.from_user.first_name != None else ""
-        user_last_name = message.from_user.last_name if message.from_user.last_name != None else ""
-        user_name = user_first_name + user_last_name if user_first_name + user_last_name != "" else message.from_user.username
+        user_name = create_user_name(message.from_user.first_name, message.from_user.last_name, message.from_user.username)
         add_user(user_id, user_name)
     else:
         bot.send_message(message.chat.id, f"Рады видеть вас снова, {message.from_user.first_name}!", reply_markup=keyboard_commands)
@@ -40,8 +38,9 @@ def send_schedule_simple(message):
             if len(args) > 1 and args[1].lower() == "today":
                 today_only = True
             
+            group_id = select_group_by_name(group_name)['id']
             # Получаем расписание
-            schedule_text = get_schedule(url, group_name, today_only)
+            schedule_text = get_schedule(url, group_id, today_only)
             
             # Отправляем расписание пользователю
             bot.reply_to(message, schedule_text)
@@ -51,31 +50,42 @@ def create_union_message(message):
     if message.chat.id < 0:
         if message.chat.id not in select_unions_tgId():
             try:
-                union_tgId, union_name, union_created_by_id, union_invite_code = message.chat.id, bot.get_chat(message.chat.id).title, message.from_user.id, bot.get_chat(message.chat.id).invite_link
-                create_union(union_tgId, union_name, union_created_by_id, union_invite_code)
-                bot.send_message(message.chat.id, "Чат успешно зарегистрирован. Теперь выберите к каким группам присоединить чат:", reply_markup=keyboard_groups)
+                union_tgId = message.chat.id
+                union_name = bot.get_chat(message.chat.id).title
+                union_created_by_id = message.from_user.id
+                user_id = message.from_user.id
+
+                # Регистрация пользователя, который пригласил бота в чат, если не зарегистрирован 
+                if user_id not in select_users_tgId():
+                    user_name = create_user_name(message.from_user.first_name, message.from_user.last_name, message.from_user.username)
+
+                    add_user(user_id, user_name)
+
+                if create_union(union_tgId, union_name, union_created_by_id):
+                    add_user_to_union(user_id, message.chat.id)
+                    bot.send_message(message.chat.id, "Чат успешно зарегистрирован. Теперь выберите к каким группам присоединить чат:", reply_markup=create_keyboard_groups(None, message.chat.id))
             except Exception as e:
                 bot.send_message(message.chat.id, "Возникла ошибка при регистрации группы.")
                 print(e)
         else:
-            bot.send_message(message.chat.id, "Ваша группа уже зарегистрирована! Теперь выберите к каким группам присоединить чат:", reply_markup=keyboard_groups)
+            bot.send_message(message.chat.id, "Ваша группа уже зарегистрирована! Теперь выберите к каким группам присоединить чат:", reply_markup=create_keyboard_groups(None, message.chat.id))
     else:
         bot.send_message(message.chat.id, "Эта функция доступна только в групповом чате.")
 
 @bot.message_handler(content_types=['new_chat_members'])
 def new_member(message):
-    if message.new_chat_members[0].id != '7000728406':
+    if message.new_chat_members[0].id != 7000728406:
         user_name = message.new_chat_members[0].first_name 
         user_id = message.new_chat_members[0].id
         bot.send_message(message.chat.id, "Добро пожаловать, {0}!".format(user_name))
 
         if user_id not in select_users_tgId():
-            user_first_name = message.new_chat_members[0].first_name if message.new_chat_members[0].first_name != None else ""
-            user_last_name = message.new_chat_members[0].last_name if message.new_chat_members[0].last_name != None else ""
-            user_name = user_first_name + user_last_name if user_first_name + user_last_name != "" else message.new_chat_members[0].username
+            user_name = create_user_name(message.new_chat_members[0].first_name, message.new_chat_members[0].last_name, message.new_chat_members[0].username)
             add_user(user_id, user_name)
 
         add_user_to_union(user_id, message.chat.id)
+    else:
+        create_union_message(message)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("groupId_"))
 def create_unionMember(call):
@@ -91,10 +101,10 @@ def create_unionMember(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("group_"))
 def send_schedule(call):
-    group_name = call.data.split("_")[1]
+    group_id = call.data.split("_")[1]
     today_only = True if call.data.split("_")[2] == "today" else False
 
-    schedule_text = get_schedule(url, group_name, today_only)
+    schedule_text = get_schedule(url, group_id, today_only)
     
     bot.delete_message(call.message.chat.id, call.message.message_id)
     bot.delete_message(call.message.chat.id, call.message.message_id - 1)
@@ -118,12 +128,18 @@ def send_about(message):
 
 @bot.message_handler(func=lambda message: True)
 def echo_all(message: telebot.types.Message):
-    if message.text in ["🗓️ Расписание занятий НТИ", "Расписание занятий НТИ", "🗓️"]:
-        bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=keyboard_groups_week)
+    if message.text in ["📚 Расписание занятий НТИ", "Расписание занятий НТИ", "📚"]:
+        bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=create_keyboard_groups('week', message.chat.id ))
+        return
+    if message.text in ["🗓️ Моё расписание", "Моё расписание", "🗓️"]:
+        bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=create_keyboard_groups('week', message.chat.id ))
         return
     if message.text in ["📅 Расписание на сегодня", "Расписание на сегодня", "📅"]:
-        bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=keyboard_groups_today)
+        bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=create_keyboard_groups('today', message.chat.id ))
         return
+    
+
+    
     if message.text == "Привет":
         bot.reply_to(message, f"Привет, {message.from_user.first_name}!")
     if message.text == "Пока":
