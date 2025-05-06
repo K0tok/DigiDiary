@@ -15,12 +15,15 @@ url = config.URL
 def send_welcome(message): 
     user_id = message.from_user.id
     if user_id not in select_users_tgId():
-        bot.send_message(message.chat.id, "Добро пожаловать в ЭДС!", reply_markup=keyboard_commands)
         # bot.send_message(message.chat.id, f"{message.chat.id}" , reply_markup=keyboard1)
         user_name = create_user_name(message.from_user.first_name, message.from_user.last_name, message.from_user.username)
+        bot.send_message(message.chat.id, f"Пользователь {user_name} зарегистрирован успешно. Добро пожаловать в ЭДС!", reply_markup=keyboard_commands)
         add_user(user_id, user_name)
     else:
-        bot.send_message(message.chat.id, f"Рады видеть вас снова, {message.from_user.first_name}!", reply_markup=keyboard_commands)
+        if message.chat.id > 0:
+            bot.send_message(message.chat.id, f"Рады видеть вас снова, {message.from_user.first_name}!", reply_markup=keyboard_commands)
+        else:
+            bot.send_message(message.chat.id, f"Выберите комманду!", reply_markup=keyboard_commands)
 
 
 @bot.message_handler(commands=["schedule"])
@@ -68,7 +71,7 @@ def create_union_message(message):
                 bot.send_message(message.chat.id, "Возникла ошибка при регистрации группы.")
                 print(e)
         else:
-            bot.send_message(message.chat.id, "Ваша группа уже зарегистрирована! Теперь выберите к каким группам присоединить чат:", reply_markup=create_keyboard_groups(None, message.chat.id))
+            bot.send_message(message.chat.id, "Ваша группа зарегистрирована! Выберите к каким группам присоединить чат или открепить:", reply_markup=create_keyboard_groups(None, message.chat.id))
     else:
         bot.send_message(message.chat.id, "Эта функция доступна только в групповом чате.")
 
@@ -90,12 +93,17 @@ def new_member(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("groupId_"))
 def create_unionMember(call):
     group_id = call.data.split("_")[1]
+    isAdd = True if call.data.split("_")[2] == 'add' else False
+    isDelete = True if call.data.split("_")[2] == 'delete' else False
 
-    add_union_to_group(call.message.chat.id, group_id)
+    if isAdd:
+        add_union_to_group(call.message.chat.id, group_id)
+        bot.send_message(call.message.chat.id, f"Теперь ваш чат закреплен за группой {select_group(group_id)['name']}")
+    elif isDelete:
+        delete_union_from_group(call.message.chat.id, group_id)
+        bot.send_message(call.message.chat.id, f"Ваш чат откреплен от группы {select_group(group_id)['name']}")
 
     bot.delete_message(call.message.chat.id, call.message.message_id)
-    bot.send_message(call.message.chat.id, f"Теперь ваш чат закреплен за группой {select_group(group_id)['name']}")
-
     bot.answer_callback_query(call.id)
 
 

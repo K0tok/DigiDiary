@@ -144,6 +144,16 @@ def add_union_to_group(union_id, group_id):
         print('add_union_to_group error:\n', e)  
 
 
+def delete_union_from_group(union_id, group_id):
+    try:
+        with db:
+            unionGroup = UnionGroup.get(UnionGroup.union_id == union_id, UnionGroup.group_id == group_id)
+            unionGroup.delete_instance()
+            unionGroup.save()
+    except Exception as e:
+        print('delete_union_from_group error:\n', e)  
+
+
 def add_user_to_union(user_id, union_id):
     try:
         with db:
