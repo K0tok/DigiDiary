@@ -1,7 +1,7 @@
 import requests
 import json
 from datetime import datetime 
-from DataBase import select_group
+from DataBase import select_group, select_user, select_union, select_user_unions, select_union_groups, select_group
 
 NUMERATOR_DATES = ["2025-04-07", "2025-04-21", "2025-05-05", "2025-05-19"]
 def is_numerator(current_date = datetime.now()):
@@ -47,9 +47,9 @@ def get_schedule(url, group_id, isNumerator, today_only=False):
 
             if isNumerator == -1:
                 if is_numerator():
-                    week_index = 1
-                else:
                     week_index = 0
+                else:
+                    week_index = 1
             elif isNumerator == 1:
                 week_index = 1
             elif isNumerator == 0:
@@ -89,3 +89,41 @@ def create_user_name(first_name, last_name, username):
     user_last_name = last_name if last_name != None else ""
     user_name = user_first_name + user_last_name if user_first_name + user_last_name != "" else username
     return user_name
+
+def create_profile_message(tgId):
+    if tgId > 0:
+        user = select_user(tgId)
+        result = ["👤 Ваш профиль\n", ]
+        result.append(f"├ 🆔ID: {tgId}")
+        result.append(f"├ Имя: {user['name']}")
+        result.append(f"└ Дата регистрации: {user['created_at']}")
+
+        result.append("\nВаши объединения:")
+        user_unions = select_user_unions(tgId)
+        if len(user_unions) == 0:
+            result.append("У вас нет объединений")
+        else:
+            for u in user_unions:
+                union_groups = []
+                for g in select_union_groups(u['id']):
+                    union_groups.append(select_group(g)['name'])
+                result.append(f" - {select_union(u['union_id'])['name']}: {', '.join(union_groups)}")
+
+        return "\n".join(result)
+    else:
+        union = select_union(tgId)
+        result = ["👤 Профиль группы"]
+        result.append(f"├ 🆔ID: {tgId}")
+        result.append(f"├ Название: {union['name']}")
+        result.append(f"└ Создатель: {union['created_by']['name']}")
+
+        result.append("\nГруппы:")
+        union_groups = []
+        for g in select_union_groups(union['id']):
+            union_groups.append(select_group(g)['name'])
+        if union_groups:
+            result.append(f" - {', '.join(union_groups)}")
+        else:
+            result.append(f" - Объединение пока что не закреплено за группой")
+
+        return "\n".join(result)
