@@ -147,9 +147,13 @@ def is_valid_date(date_str):
         "%Y.%m.%d": "YYYY.MM.DD"
     }
 
+    # Если передан datetime — конвертируем в строку
+    if isinstance(date_str, datetime):
+        date_str = date_str.strftime("%Y-%m-%d")
+
     for fmt in formats:
         try:
-            due_date = datetime.strptime(date_str, fmt).date()  # Получаем только дату
+            due_date = datetime.strptime(date_str, fmt).date()
             if due_date < datetime.now().date():
                 return False, "Дата не может быть раньше сегодняшней."
             return True, due_date.strftime("%Y-%m-%d")

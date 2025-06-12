@@ -48,6 +48,7 @@ class HomeworkStatus(pw.Model):
     homework_id = pw.ForeignKeyField(Homework, backref='statuses')
     user_id = pw.ForeignKeyField(User)
     is_done = pw.BooleanField(default=False)
+    is_archived = pw.BooleanField(default=False)
     updated_at = pw.DateTimeField(default=datetime.datetime.now)
 
     class Meta:

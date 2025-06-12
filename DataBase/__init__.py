@@ -19,10 +19,12 @@ from .DBcommands import (add_bell,
                         select_union_groups,
                         select_union_users,
                         select_user_unions,
+                        remove_user_from_union,
                         create_homework,
                         select_homework,
                         select_homeworks_by_user,
                         get_homework_groups,
                         delete_homework,
                         set_homework_status,
-                        get_homework_status)
+                        get_homework_status,
+                        archive_homework)

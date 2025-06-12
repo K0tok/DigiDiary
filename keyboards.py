@@ -25,13 +25,16 @@ keyboard_profile_chat = telebot.types.InlineKeyboardMarkup(row_width=1)
 keyboard_profile_chat.add(telebot.types.InlineKeyboardButton(text="✏️ Изменить название", callback_data="changeMyName_union"))
 
 def create_keyboard_isDone(hw, is_done):
-    keyboard_isDone = telebot.types.InlineKeyboardMarkup()
-    button = telebot.types.InlineKeyboardButton(
-        "✅ Выполнить" if not is_done else "❌ Отменить выполнение",
-        callback_data=f"toggle_hw_{hw['id']}"
-    )
-    keyboard_isDone.add(button)
-    return keyboard_isDone
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    button_text = "❌ Отменить выполнение" if is_done else "✅ Выполнить"
+    keyboard.add(telebot.types.InlineKeyboardButton(button_text, callback_data=f"toggle_hw_{hw['id']}"))
+    keyboard.add(telebot.types.InlineKeyboardButton("🗂 В архив", callback_data=f"archive_hw_{hw['id']}"))
+    return keyboard
+
+def get_homework_list_keyboard():
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.add(telebot.types.InlineKeyboardButton("🗂 Архив", callback_data="archive_menu"))
+    return keyboard
 
 def get_homework_keyboard(groups):
     keyboard = telebot.types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True, resize_keyboard=True)
