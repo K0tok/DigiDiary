@@ -109,7 +109,6 @@ def create_group(name):                                                 # Соз
 def select_group(id):                                                   # Поиск группы
     try:
         with db:
-            print(Group.get(Group.id == id))
             return model_to_dict(Group.get(Group.id == id))
     except Exception as e:
         print('select_group error:\n', e)
@@ -143,6 +142,16 @@ def create_union(tgId, name, created_by_id):                            # Соз
         print('create_union error:\n', e)
         return False
     
+def update_union(tgId, name = None):                                     # Обновление имени пользователя
+    try:
+        with db:
+            union = Union.get(Union.tgId == tgId)
+            union.name = name
+            union.save()
+
+    except Exception as e:
+        print('update_union error:\n', e)
+
 def select_union(tgId):                                                  # Поиск объединения
     try:
         with db:
@@ -201,3 +210,23 @@ def select_union_users(union_id):                                        # Сп�
     except Exception as e:
         print('select_union_users error:\n', e)  
         return [] 
+    
+
+def create_homework(user_id, subject, due_date, description):           # Создание домашнего задания
+    try:
+        with db:
+            homework = Homework(user_id = user_id, subject = subject, due_date = due_date, description = description)
+            homework.save()
+            return homework.id
+    except Exception as e:
+        print('create_homework error:\n', e)
+        return ''
+
+def select_homework(id):
+    try:
+        with db:
+            return model_to_dict(Homework.get(Homework.id == id))
+
+    except Exception as e:
+        print('select_homework error:\n', e)
+        return []
