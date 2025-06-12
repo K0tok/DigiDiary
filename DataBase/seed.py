@@ -4,7 +4,7 @@ from .DBcommands import create_group, add_bell
 from datetime import time
 
 
-TABLES = [User, Group, Union, Subject, Homework, UnionHomeworks, Teacher, Timetable, Lesson, UnionMember, UnionGroup]
+TABLES = [User, Group, Union, Homework, HomeworkStatus, UnionHomeworks, Teacher, Timetable, Lesson, UnionMember, UnionGroup]
 
 bells = [
         {

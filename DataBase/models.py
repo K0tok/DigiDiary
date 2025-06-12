@@ -1,7 +1,7 @@
 import peewee as pw
 import datetime
 
-db = pw.SqliteDatabase("DataBase/DB.db")
+db = pw.SqliteDatabase("DataBase/DB.db", pragmas={'journal_mode': 'wal'})
 
 class User(pw.Model):               # Пользователи
     id = pw.AutoField()
@@ -43,6 +43,16 @@ class Homework(pw.Model):            # Домашние задания
     class Meta:
         database = db
         db_table = "homeworks"
+
+class HomeworkStatus(pw.Model):
+    homework_id = pw.ForeignKeyField(Homework, backref='statuses')
+    user_id = pw.ForeignKeyField(User)
+    is_done = pw.BooleanField(default=False)
+    updated_at = pw.DateTimeField(default=datetime.datetime.now)
+
+    class Meta:
+        database = db
+        db_table = "homework_status"
 
 class UnionHomeworks(pw.Model):       # Связи ДЗ и объединений
     union_id = pw.ForeignKeyField(Union)

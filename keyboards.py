@@ -5,11 +5,11 @@ from DataBase import select_groups, select_user_groups, select_union_groups, sel
 
 keyboard_commands = telebot.types.ReplyKeyboardMarkup(True)
 keyboard_commands.row("🗓️ Моё расписание", "📅 Расписание на сегодня")
-keyboard_commands.row("📚 Расписание занятий НТИ", "📖 Дневник")
+keyboard_commands.row("📚 Расписание занятий НТИ", "📒 Посмотреть мои ДЗ")
 keyboard_commands.row("👤 Мой профиль")
 
 keyboard_commands_chat = telebot.types.ReplyKeyboardMarkup(True)
-keyboard_commands_chat.row("📚 Расписание занятий НТИ", "📖 Дневник")
+keyboard_commands_chat.row("📚 Расписание занятий НТИ", "📌 Добавить новое задание")
 keyboard_commands_chat.row("⚙️ Параметры", "➕ Прикрепить меня")
 keyboard_commands_chat.row("👤 Профиль группы")
 
@@ -24,8 +24,21 @@ keyboard_profile.add(telebot.types.InlineKeyboardButton(text="✏️ Измен�
 keyboard_profile_chat = telebot.types.InlineKeyboardMarkup(row_width=1)
 keyboard_profile_chat.add(telebot.types.InlineKeyboardButton(text="✏️ Изменить название", callback_data="changeMyName_union"))
 
-keyboard_diary_functions = telebot.types.ReplyKeyboardMarkup(True)
-keyboard_diary_functions.row("📒 Посмотреть мои ДЗ", "📌 Добавить новое задание")
+def create_keyboard_isDone(hw, is_done):
+    keyboard_isDone = telebot.types.InlineKeyboardMarkup()
+    button = telebot.types.InlineKeyboardButton(
+        "✅ Выполнить" if not is_done else "❌ Отменить выполнение",
+        callback_data=f"toggle_hw_{hw['id']}"
+    )
+    keyboard_isDone.add(button)
+    return keyboard_isDone
+
+def get_homework_keyboard(groups):
+    keyboard = telebot.types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True, resize_keyboard=True)
+    buttons = [telebot.types.KeyboardButton("📚 Все задания")]
+    buttons += [telebot.types.KeyboardButton(group_name) for group_name in sorted(groups)]
+    keyboard.add(*buttons)
+    return keyboard
 
 def create_keyboard_groups(dayType = None, chat_id = None, union_delete = None):
     # Определяем расписание запрошено в беседе или в личных сообщениях

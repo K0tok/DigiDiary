@@ -136,3 +136,25 @@ def homework(user_id = None, subject = None, due_date = None, description = None
         "description" : description
     }
     return homework
+
+def is_valid_date(date_str):
+    formats = {
+        "%Y-%m-%d": "YYYY-MM-DD",
+        "%d.%m.%Y": "DD.MM.YYYY",
+        "%Y/%m/%d": "YYYY/MM/DD",
+        "%d/%m/%Y": "DD/MM/YYYY",
+        "%d-%m-%Y": "DD-MM-YYYY",
+        "%Y.%m.%d": "YYYY.MM.DD"
+    }
+
+    for fmt in formats:
+        try:
+            due_date = datetime.strptime(date_str, fmt).date()  # Получаем только дату
+            if due_date < datetime.now().date():
+                return False, "Дата не может быть раньше сегодняшней."
+            return True, due_date.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    supported = ", ".join(set(formats.values()))
+    return False, f"Неверный формат даты. Используйте один из: {supported}"

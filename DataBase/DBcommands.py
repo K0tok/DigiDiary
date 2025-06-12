@@ -39,7 +39,7 @@ def select_user(tgId):                                                  # Пои
             return model_to_dict(User.get(User.tgId == tgId))
     except Exception as e:
         print('select_user error:\n', e)
-        return []
+        return None
 
 def update_user(tgId, name = None):                                     # Обновление имени пользователя
     try:
@@ -212,15 +212,17 @@ def select_union_users(union_id):                                        # Сп�
         return [] 
     
 
-def create_homework(user_id, subject, due_date, description):           # Создание домашнего задания
+def create_homework(user_id, subject, due_date, description, union_id):           # Создание домашнего задания
     try:
         with db:
             homework = Homework(user_id = user_id, subject = subject, due_date = due_date, description = description)
             homework.save()
+            unionHomework = UnionHomeworks(union_id = union_id, homework_id = homework.id)
+            unionHomework.save()
             return homework.id
     except Exception as e:
         print('create_homework error:\n', e)
-        return ''
+        return None
 
 def select_homework(id):
     try:
@@ -229,4 +231,80 @@ def select_homework(id):
 
     except Exception as e:
         print('select_homework error:\n', e)
+        return None
+    
+def select_homeworks_by_user(user_id):
+    try:
+        with db:
+            user_unions = [u.union_id for u in UnionMember.select().where(UnionMember.user_id == user_id)]
+            if not user_unions:
+                return []
+
+            homework_relations = UnionHomeworks.select().where(UnionHomeworks.union_id.in_(user_unions))
+            homework_ids = [hw.homework_id for hw in homework_relations]
+            if not homework_ids:
+                return []
+
+            homeworks = list(Homework.select().where(Homework.id.in_(homework_ids)).dicts())
+            
+            return homeworks
+    except Exception as e:
+        print('select_homeworks_by_user error:\n', e)
         return []
+
+def get_homework_groups(homework_id):
+    try:
+        relations = UnionHomeworks.select().where(UnionHomeworks.homework_id == homework_id)
+        group_names = []
+        for rel in relations:
+            union_groups = UnionGroup.select().where(UnionGroup.union_id == rel.union_id)
+            for ug in union_groups:
+                group = Group.get_by_id(ug.group_id) 
+                if group:
+                    group_names.append(group.name)
+        return list(set(group_names)) 
+    except Exception as e:
+        print('get_homework_groups error:\n', e)
+        return []
+    
+def delete_homework(homework_id):
+    try:
+        with db:
+            UnionHomeworks.delete().where(UnionHomeworks.homework_id == homework_id).execute()
+            
+            homework = Homework.get_or_none(Homework.id == homework_id)
+            if homework:
+                homework.delete_instance()
+                return True
+            else:
+                print(f"Задание с ID {homework_id} не найдено.")
+                return False
+    except Exception as e:
+        print('delete_homework error:\n', e)
+        return False
+    
+def set_homework_status(homework_id, user_id, is_done):
+    try:
+        with db:
+            status, created = HomeworkStatus.get_or_create(
+                homework_id=homework_id,
+                user_id=user_id,
+                defaults={'is_done': is_done}
+            )
+            if not created:
+                status.is_done = is_done
+                status.updated_at = datetime.now()
+                status.save()
+            return True
+    except Exception as e:
+        print('set_homework_status error:\n', e)
+        return False
+
+def get_homework_status(homework_id, user_id):
+    try:
+        with db:
+            status = HomeworkStatus.get_or_none((HomeworkStatus.homework_id == homework_id) & (HomeworkStatus.user_id == user_id))
+            return status.is_done if status else False
+    except Exception as e:
+        print('get_homework_status error:\n', e)
+        return False
