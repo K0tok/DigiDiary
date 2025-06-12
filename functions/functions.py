@@ -127,3 +127,12 @@ def create_profile_message(tgId):
             result.append(f" - Объединение пока что не закреплено за группой")
 
         return "\n".join(result)
+    
+def homework(user_id = None, subject = None, due_date = None, description = None):
+    homework = {
+        "user_id" : user_id,
+        "subject" : subject,
+        "due_date" : due_date,
+        "description" : description
+    }
+    return homework

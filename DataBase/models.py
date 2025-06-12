@@ -32,19 +32,10 @@ class Union(pw.Model):             # Объединения
         database = db
         db_table = "unions"
 
-
-class Subject(pw.Model):            # Предметы
-    id = pw.PrimaryKeyField()
-    name = pw.CharField(60)
-
-    class Meta:
-        database = db
-        db_table = "subjects"
-
 class Homework(pw.Model):            # Домашние задания
     id = pw.PrimaryKeyField()
     user_id = pw.ForeignKeyField(User)
-    subject_id = pw.ForeignKeyField(Subject)
+    subject = pw.CharField()
     due_date = pw.DateTimeField()
     description = pw.CharField()
     created_at = pw.DateTimeField(default=datetime.datetime.now)
@@ -52,6 +43,13 @@ class Homework(pw.Model):            # Домашние задания
     class Meta:
         database = db
         db_table = "homeworks"
+
+class UnionHomeworks(pw.Model):       # Связи ДЗ и объединений
+    union_id = pw.ForeignKeyField(Union)
+    homework_id = pw.ForeignKeyField(Homework)
+    class Meta:
+        database = db
+        db_table = "unionHomeworks"
 
 class Teacher(pw.Model):              # Преподаватели
     id = pw.PrimaryKeyField()
@@ -77,7 +75,7 @@ class Lesson(pw.Model):                # Пары
     id = pw.PrimaryKeyField()
     group_id = pw.ForeignKeyField(Group)
     day_of_week = pw.CharField(20)
-    subject_id = pw.ForeignKeyField(Subject)
+    subject = pw.CharField()
     teacher_id = pw.ForeignKeyField(Teacher)
     room = pw.CharField()
     lesson_number = pw.ForeignKeyField(Timetable)
