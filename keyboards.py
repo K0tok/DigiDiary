@@ -1,3 +1,4 @@
+import requests
 import telebot
 from Functions import get_groups, is_numerator
 from DataBase import select_groups, select_user_groups, select_union_groups, select_union
@@ -17,11 +18,14 @@ yesButton = telebot.types.InlineKeyboardButton("Да", callback_data="yes")
 noButton = telebot.types.InlineKeyboardButton("Нет", callback_data="no")
 simpleAnswerKeyboard.row(yesButton, noButton)
 
-keyboard_profile = telebot.types.ReplyKeyboardMarkup(True)
-keyboard_profile.row("✏️ Изменить имя")
+keyboard_profile = telebot.types.InlineKeyboardMarkup(row_width=1)
+keyboard_profile.add(telebot.types.InlineKeyboardButton(text="✏️ Изменить имя", callback_data="changeMyName_user"))
 
-keyboard_profile_chat = telebot.types.ReplyKeyboardMarkup(True)
-keyboard_profile_chat.row("✏️ Изменить название")
+keyboard_profile_chat = telebot.types.InlineKeyboardMarkup(row_width=1)
+keyboard_profile_chat.add(telebot.types.InlineKeyboardButton(text="✏️ Изменить название", callback_data="changeMyName_union"))
+
+keyboard_diary_functions = telebot.types.ReplyKeyboardMarkup(True)
+keyboard_diary_functions.row("📒 Посмотреть мои ДЗ", "📌 Добавить новое задание")
 
 def create_keyboard_groups(dayType = None, chat_id = None, union_delete = None):
     # Определяем расписание запрошено в беседе или в личных сообщениях
@@ -86,3 +90,49 @@ def keyboard_numerator(isNumerator, group_id):
     )
     keyboard_numerator.add(button)
     return keyboard_numerator
+
+
+def create_keyboard_subjects(url, group_names):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        subjects = set()
+
+        def recursive_search(obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if key == "n" and isinstance(value, str) and value.strip():
+                        subject_name = value.split(" (")[0].split(",")[0].strip()
+                        subjects.add(subject_name)
+                    else:
+                        recursive_search(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    recursive_search(item)
+
+        if isinstance(group_names, str):
+            group_names = [group_names]
+
+        for group_name in group_names:
+            group_data = data.get(group_name)
+            if group_data:
+                for day in group_data:
+                    recursive_search(day)
+
+        sorted_subjects = sorted(subjects)
+
+        keyboard_subjects = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        for i in range(0, len(sorted_subjects), 2):
+            row = []
+            row.append(sorted_subjects[i])
+            if i + 1 < len(sorted_subjects):
+                row.append(sorted_subjects[i + 1])
+            keyboard_subjects.row(*row)
+
+        return keyboard_subjects
+
+    except Exception as e:
+        print(f"Ошибка при получении предметов: {e}")
+        return [], None
