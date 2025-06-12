@@ -50,6 +50,7 @@ def send_schedule_simple(message):
 
 @bot.message_handler(commands=["profile"])
 def profile_message(message):
+    bot.delete_message(message.chat.id, message.message_id)
     if message.chat.id < 0:
         bot.send_message(message.chat.id, create_profile_message(message.chat.id), reply_markup=keyboard_profile_chat)
     else:
@@ -72,7 +73,7 @@ def union_message(message):
                     add_user(user_id, user_name)
 
                 if create_union(union_tgId, union_name, union_created_by_id):
-                    add_user_to_union(user_id, message.chat.id)
+                    add_user_to_union(select_user(user_id)['id'], select_union(message.chat.id)['id'])
                     bot.send_message(message.chat.id, "Чат успешно зарегистрирован. Теперь выберите к каким группам присоединить чат:", reply_markup=create_keyboard_groups(None, message.chat.id))
             except Exception as e:
                 bot.send_message(message.chat.id, "Возникла ошибка при регистрации группы.")
@@ -93,7 +94,7 @@ def new_member(message):
             user_name = create_user_name(message.new_chat_members[0].first_name, message.new_chat_members[0].last_name, message.new_chat_members[0].username)
             add_user(user_id, user_name)
 
-        add_user_to_union(user_id, message.chat.id)
+        add_user_to_union(select_user(user_id)['id'], select_union(message.chat.id)['id'])
     else:
         union_message(message)
 
@@ -135,6 +136,60 @@ def send_schedule(call):
     bot.answer_callback_query(call.id)
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("changeMyName_"))
+def changeMyName(call):
+    isUnion = True if call.data.split("_")[1] == "union" else False
+    if not isUnion:
+        msg = bot.send_message(call.message.chat.id, "✏️ Изменение имени\nВведите новое:")
+    else:
+        msg = bot.send_message(call.message.chat.id, "✏️ Изменение названия\nВведите новое:")
+    bot.register_next_step_handler(msg, changeMyName_secondStep(call.message, call.message.text, isUnion))
+
+def changeMyName_secondStep(message, newName, isUnion = False):
+    if not isUnion:
+        update_user(message.chat.id, newName)
+        bot.send_message(message.chat.id, f"Ваше имя изменено на <i>{newName}</i>")
+    else:
+        update_union(message.chat.id, newName)
+        bot.set_chat_title(message.chat.id, title=newName)
+        bot.send_message(message.chat.id, f"Имя объединения изменено на <i>{newName}</i>")
+
+
+@bot.message_handler(content_types=['new_chat_title'])
+def new_chat_title(message):
+    changeMyName_secondStep(message, bot.get_chat(message.chat.id).title, True)
+
+
+def new_homework(message):
+    if message.chat.id > 0:
+        bot.reply_to(message, "Эта функция доступна только в групповом чате объединения.")
+    else:
+        user_tgId = message.from_user.id
+        if user_tgId not in select_users_tgId():
+            bot.reply_to(message, "Вы не зарегистрированы в системе. Пожалуйста зарегистрируйтесь")
+        elif select_user(user_tgId)['id'] not in select_union_users(message.chat.id):
+            bot.reply_to(message, "Вы не прикреплены к объединению. Пожалуйста нажмите кнопку <i>➕ Прикрепить меня</i>")
+        else:
+            union_id = select_union(message.chat.id)['id']
+            groupNames = []
+            for g in select_union_groups(union_id):
+                groupNames.append(select_group(g)['name'])
+            msg = bot.send_message(message.chat.id, "📌 Добавление нового задания\nВыберите предмет из списка или введите вручную.", reply_markup=create_keyboard_subjects(url, groupNames))
+            bot.register_next_step_handler(msg, new_homework_secondStep(message, homework(select_user()['id'])))
+
+def new_homework_secondStep(message, homework_obj):
+    msg = bot.send_message(message.chat.id, "📌 Добавление нового задания\nВведите срок сдачи\n<i>Пример: 2025-05-19</i>", )
+    bot.register_next_step_handler(msg, new_homework_thirdStep(message, homework(homework_obj["user_id"], message.text)))
+
+def new_homework_thirdStep(message, homework_obj):
+    msg = bot.send_message(message.chat.id, "📌 Добавление нового задания\nВведите задание:", )
+    bot.register_next_step_handler(msg, new_homework_fourthStep(message, homework(homework_obj["user_id"], homework_obj["subject"], message.text)))
+
+def new_homework_fourthStep(message, homework_obj):
+    homework_id = create_homework(homework_obj["user_id"], homework_obj["subject"], homework_obj["due_date"], message.text)
+    done_homework = select_homework(homework_id)
+    bot.send_message(message.chat.id, f'📌 Добавление нового задания\n├ {done_homework["subject"]}\n├ Сдать до: {done_homework["due_date"]}\n└ Описание: {done_homework["description"]}')
+
 @bot.message_handler(commands=["help"])
 def send_welcome(message):
     bot.send_message(
@@ -172,14 +227,20 @@ def echo_all(message: telebot.types.Message):
                 if user_id not in select_users_tgId():
                     user_name = create_user_name(message.from_user.first_name, message.from_user.last_name, message.from_user.username)
                     add_user(user_id, user_name)
-                    add_user_to_union(user_id, union_id)
+                    add_user_to_union(select_user(user_id)['id'], select_union(union_id)['id'])
                     bot.send_message(message.chat.id, f"Пользователь {user_name} зарегистрирован и прикреплён успешно. Добро пожаловать в ЭДС!", reply_markup=keyboard_commands_chat)
                 else:
-                    add_user_to_union(user_id, union_id)
+                    add_user_to_union(select_user(user_id)['id'], select_union(union_id)['id'])
                     bot.send_message(message.chat.id, f"Пользователь {user_name} прикреплен успешно!", reply_markup=keyboard_commands_chat)
     if message.text in ["⚙️ Параметры", "Параметры", "⚙️"]:
         union_message(message)
     if message.text in ["👤 Мой профиль", "👤 Профиль группы", "Мой профиль", "Профиль группы", "👤"]:
         profile_message(message)
+    if message.text in ["📖 Дневник", "Дневник", "📖"]:
+        bot.reply_to(message, "📖 Дневник\nВыберите функцию:", reply_markup=keyboard_diary_functions)
+    # if message.text in ["📒 Посмотреть мои ДЗ", "Посмотреть мои ДЗ", "📒"]:
+        # 
+    if message.text in ["📌 Добавить новое задание", "Добавить новое задание", "📌"]:
+        new_homework(message)
 
 bot.infinity_polling()
