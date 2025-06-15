@@ -3,7 +3,7 @@ import json
 from datetime import datetime 
 from DataBase import select_group, select_user, select_union, select_user_unions, select_union_groups, select_group
 
-NUMERATOR_DATES = ["2025-04-07", "2025-04-21", "2025-05-05", "2025-05-19"]
+NUMERATOR_DATES = ["2025-04-07", "2025-04-21", "2025-05-05", "2025-05-19", "2025-06-02", "2025-06-16"]
 def is_numerator(current_date = datetime.now()):
     return current_date.strftime("%Y-%m-%d") in NUMERATOR_DATES
 
@@ -69,7 +69,7 @@ def get_schedule(url, group_id, isNumerator, today_only=False):
                 else:
                     result.append("\nСегодня нет пар!")
             else:
-                result.append(f"Расписание для группы <b>'{group_name}'</b> на неделю ({'<i>числитель</i>' if week_index == 0 else '<i>знаменатель</i>'}):")
+                result.append(f"📘 Расписание для группы <b>'{group_name}'</b> на неделю ({'<i>числитель</i>' if week_index == 0 else '<i>знаменатель</i>'}):")
                 for day_of_week, day_schedule in schedule[week_index].items():
                     result.append(f"<blockquote expandable><i>{day_of_week}</i>:")
                     for num, lessons in day_schedule.items():

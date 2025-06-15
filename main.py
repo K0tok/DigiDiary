@@ -22,16 +22,34 @@ def send_welcome(message):
         user_name = create_user_name(message.from_user.first_name, message.from_user.last_name, message.from_user.username)
         bot.send_message(message.chat.id, f"Пользователь {user_name} зарегистрирован успешно. Добро пожаловать в ЭДС!", reply_markup=keyboard_commands if message.chat.id > 0 else keyboard_commands_chat)
         add_user(user_id, user_name)
+    if message.chat.id > 0:
+        bot.send_message(
+            message.chat.id, 
+            f'''<b>👋 Добро пожаловать в DigiDiary</b>
+
+📌 Здесь вы можете:
+- Просматривать домашние задания
+- Смотреть расписание занятий
+- Получать напоминания о дедлайнах
+
+Выберите нужную функцию:''', 
+            reply_markup=keyboard_commands)
     else:
-        if message.chat.id > 0:
-            bot.send_message(message.chat.id, f"Рады видеть вас снова, {message.from_user.first_name}!", reply_markup=keyboard_commands)
-        else:
-            bot.send_message(message.chat.id, f"Выберите команду!", reply_markup=keyboard_commands_chat)
+        bot.send_message(
+            message.chat.id, 
+            f'''<b>👋 Добро пожаловать в DigiDiary</b>
+
+📌 Здесь вы можете:
+- Добавлять домашние задания
+- Управлять учебной группой
+
+Выберите нужную функцию:''', 
+            reply_markup=keyboard_commands_chat)
 
 
 @bot.message_handler(commands=["schedule"])
 def send_schedule_simple(message):
-        # Разбираем текст сообщения             ДОБАВИТЬ РАЗДЕЛЕНИЕ НА ЛИЧКУ И ЧАТ
+        # Разбираем текст сообщения      
         command, *args = message.text.split()
         if len(args) < 1:
             bot.reply_to(message, "Пожалуйста, выберите группу или введите номер в комманду. \n<i>Пример: /schedule Т-143901-ИСТ</i>", reply_markup=create_keyboard_groups('week', message.chat.id))
@@ -51,8 +69,8 @@ def send_schedule_simple(message):
             # Отправляем расписание пользователю
             bot.reply_to(message, schedule_text)
 
-def send_my_schedule(message, today_only=False):
-    user_tgId = message.from_user.id
+def send_my_schedule(message, week_type=-1, today_only=False):
+    user_tgId = message.chat.id
     if message.chat.id > 0:  # Только в ЛС
         user_data = select_user(user_tgId)
         if not user_data:
@@ -63,7 +81,7 @@ def send_my_schedule(message, today_only=False):
         user_unions = select_user_unions(user_id)
 
         if not user_unions:
-            bot.send_message(message.chat.id, "📭 Вы не состоите ни в одном объединении.")
+            bot.send_message(message.chat.id, "📭 Вы не состоите ни в одном объединении.", reply_markup=keyboard_commands)
             return
 
         all_schedules = []
@@ -76,14 +94,13 @@ def send_my_schedule(message, today_only=False):
                 group_name = select_group(g)['name']
 
                 try:
-                    schedule_data = get_schedule(url, g, -1, today_only=today_only)  # Получаем расписание
+                    schedule_data = get_schedule(url, g, week_type, today_only=today_only)  # Получаем расписание
                     if schedule_data.startswith("Ошибка") or schedule_data.startswith("Группа"):
                         continue
 
-                    # Убираем лишние заголовки
                     lines = schedule_data.split('\n')
-                    filtered_lines = [line for line in lines if not line.startswith("Расписание для группы")]
-                    all_schedules.append(f"<b>📘 Группа:</b> {group_name}")
+                    filtered_lines = [line for line in lines]
+                    # all_schedules.append(f"<b>📘 Группа:</b> {group_name}")
                     all_schedules.extend(filtered_lines)
 
                 except Exception as e:
@@ -94,9 +111,21 @@ def send_my_schedule(message, today_only=False):
             return
 
         result_text = "\n".join(all_schedules)
-        bot.send_message(message.chat.id, result_text, reply_markup=keyboard_commands)
+        bot.send_message(message.chat.id, result_text, reply_markup=get_keyboard_toggle_week(week_type) if not today_only else keyboard_commands)
     else:
         bot.send_message(message.chat.id, "❌ Эта функция доступна только в личных сообщениях.")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("toggle_week_"))
+def handle_toggle_week(call):
+    week_type = int(call.data.split("_")[2])
+    try:
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    except:
+        pass
+
+    send_my_schedule(call.message, week_type=week_type)
+
 
 @bot.message_handler(commands=["profile"])
 def profile_message(message):
@@ -137,13 +166,19 @@ def new_member(message):
     if message.new_chat_members[0].id != 7000728406:
         user_name = message.new_chat_members[0].first_name 
         user_id = message.new_chat_members[0].id
-        bot.send_message(message.chat.id, "Добро пожаловать, {0}!".format(user_name))
 
         if user_id not in select_users_tgId():
             user_name = create_user_name(message.new_chat_members[0].first_name, message.new_chat_members[0].last_name, message.new_chat_members[0].username)
             add_user(user_id, user_name)
+        union_users = []
+        for um in select_union_users(select_union(message.chat.id)['id']):
+            union_users.append(um['user_id'])
+        if select_user(user_id)['id'] in union_users:
+            if add_user_to_union(select_user(user_id)['id'], select_union(message.chat.id)['id']):
+                bot.send_message(message.chat.id, "Добро пожаловать, {0}!".format(user_name))
+            else:
+                bot.send_message(message.chat.id, "Не удалось прикрепить пользователя {0}.".format(user_name))
 
-        add_user_to_union(select_user(user_id)['id'], select_union(message.chat.id)['id'])
     else:
         union_message(message)
 
@@ -193,6 +228,7 @@ def changeMyName(call):
     else:
         msg = bot.send_message(call.message.chat.id, "✏️ Изменение названия\nВведите новое:")
     bot.register_next_step_handler(msg, lambda m: changeMyName_secondStep(m, isUnion))
+    bot.answer_callback_query(call.id)
 
 def changeMyName_secondStep(message, isUnion = False):
     newName = message.text
@@ -205,7 +241,6 @@ def changeMyName_secondStep(message, isUnion = False):
         bot.send_message(message.chat.id, f"Имя объединения изменено на <i>{newName}</i>")
 
 
-
 def new_homework(message):
     if message.chat.id > 0:
         bot.reply_to(message, "Эта функция доступна только в групповом чате объединения.")
@@ -213,40 +248,87 @@ def new_homework(message):
         user_tgId = message.from_user.id
         if user_tgId not in select_users_tgId():
             bot.reply_to(message, "Вы не зарегистрированы в системе. Пожалуйста зарегистрируйтесь")
-        # elif select_user(user_tgId)['id'] not in select_union_users(message.chat.id):
-        #     print(select_user(user_tgId)['id'], select_union_users(message.chat.id))
-        #     bot.reply_to(message, "Вы не прикреплены к объединению. Пожалуйста нажмите кнопку <i>➕ Прикрепить меня</i>")
-        else:
-            union_id = select_union(message.chat.id)['id']
-            groupNames = []
-            for g in select_union_groups(union_id):
-                groupNames.append(select_group(g)['name'])
-            msg = bot.send_message(message.chat.id, "📌 Добавление нового задания\n\nВыберите предмет из списка или введите вручную.\n\n├ -\n├ Сдать до: -\n└ Описание: -", reply_markup=create_keyboard_subjects(url, groupNames))
-            bot.register_next_step_handler(msg, lambda m: new_homework_secondStep(m, homework(select_user(user_tgId)['id'])))
+            return
+
+        # Получаем данные о чате-объединении
+        union_data = select_union(message.chat.id)
+        if not union_data:
+            bot.reply_to(message, "❌ Этот чат не зарегистрирован как объединение.")
+            return
+
+        union_id = union_data['id']
+
+        # Проверяем, состоит ли пользователь в объединении
+        if select_user(user_tgId)['id'] not in [ u['user_id'] for u in select_union_users(union_id) ]:
+            bot.reply_to(
+                message,
+                "❌ Вы не состоите в этом объединении. Нажмите кнопку <i>➕ Прикрепить меня</i>, чтобы получить доступ.",
+                reply_markup=telebot.types.ReplyKeyboardMarkup(resize_keyboard=True).add(telebot.types.KeyboardButton("➕ Прикрепить меня"))
+            )
+            return
+
+        groupNames = [select_group(g)['name'] for g in select_union_groups(union_id)]
+
+        # Клавиатура с предметами и отменой
+        keyboard = create_keyboard_subjects(url, groupNames)
+        keyboard.add(telebot.types.KeyboardButton("❌ Отмена"))
+
+        msg = bot.send_message(
+            message.chat.id,
+            "📌 Добавление нового задания\n\nВыберите предмет из списка или введите вручную.\n\n├ -\n├ Сдать до: -\n└ Описание: -",
+            reply_markup=keyboard
+        )
+        bot.register_next_step_handler(msg, lambda m: new_homework_secondStep(m, homework(select_user(user_tgId)['id'])))
 
 def new_homework_secondStep(message, homework_obj):
-    msg = bot.send_message(message.chat.id, f'📌 Добавление нового задания\n\nВведите срок сдачи\n<i>Пример: 2025-05-19</i>\n\n├ {message.text}\n├ Сдать до: -\n└ Описание: -' )
+    if message.text == "❌ Отмена":
+        bot.send_message(message.chat.id, "❌ Добавление домашнего задания отменено.", reply_markup=keyboard_commands_chat)
+        return
+    msg = bot.send_message(
+            message.chat.id,
+            f'📌 Добавление нового задания\n\nВведите срок сдачи\n<i>Пример: 2025-05-19</i>\n\n├ {message.text}\n├ Сдать до: -\n└ Описание: -',
+            reply_markup=keyboard_cancel
+        )
     bot.register_next_step_handler(msg, lambda m: new_homework_thirdStep(m, homework(homework_obj["user_id"], message.text)))
     bot.delete_message(message.chat.id, message.message_id)
     bot.delete_message(message.chat.id, message.message_id - 1)
 
 def new_homework_thirdStep(message, homework_obj):
+    if message.text == "❌ Отмена":
+        bot.send_message(message.chat.id, "❌ Добавление домашнего задания отменено.", reply_markup=keyboard_commands_chat)
+        return
+    
     is_valid, result = is_valid_date(message.text)
     if not is_valid:
         bot.send_message(message.chat.id, f"❌ {result}")
-        msg = bot.send_message(message.chat.id, f'📌 Добавление нового задания\n\nВведите срок сдачи\n<i>Пример: 2025-05-19</i>\n\n├ {homework_obj["subject"]}\n├ Сдать до: -\n└ Описание: -')
+        msg = bot.send_message(
+            message.chat.id, 
+            f'📌 Добавление нового задания\n\nВведите срок сдачи\n<i>Пример: 2025-05-19</i>\n\n├ {homework_obj["subject"]}\n├ Сдать до: -\n└ Описание: -',
+            reply_markup=keyboard_cancel
+            )
         bot.register_next_step_handler(msg, lambda m: new_homework_thirdStep(m, homework_obj))
         return
     
-    msg = bot.send_message(message.chat.id, f'📌 Добавление нового задания\n\nВведите задание:\n\n├ {homework_obj["subject"]}\n├ Сдать до: {result}\n└ Описание: -')
+    msg = bot.send_message(
+        message.chat.id, 
+        f'📌 Добавление нового задания\n\nВведите задание:\n\n├ {homework_obj["subject"]}\n├ Сдать до: {result}\n└ Описание: -',
+        reply_markup=keyboard_cancel
+        )
     bot.register_next_step_handler(msg, lambda m: new_homework_fourthStep(m, homework(homework_obj["user_id"], homework_obj["subject"], result)))
     bot.delete_message(message.chat.id, message.message_id)
     bot.delete_message(message.chat.id, message.message_id - 1)
 
 def new_homework_fourthStep(message, homework_obj):
+    if message.text == "❌ Отмена":
+        bot.send_message(message.chat.id, "❌ Добавление домашнего задания отменено.", reply_markup=keyboard_commands_chat)
+        return
     homework_id = create_homework(homework_obj["user_id"], homework_obj["subject"], homework_obj["due_date"], message.text, select_union(message.chat.id)['id'])
     done_homework = select_homework(homework_id)
-    bot.send_message(message.chat.id, f'📌 Задание добавлено\n├ {done_homework["subject"]}\n├ Сдать до: {done_homework["due_date"].strftime("%d.%m.%Y")}\n└ Описание: {done_homework["description"]}', reply_markup=keyboard_commands_chat)
+    bot.send_message(
+        message.chat.id, 
+        f'📌 Задание добавлено\n├ {done_homework["subject"]}\n├ Сдать до: {done_homework["due_date"].strftime("%d.%m.%Y")}\n└ Описание: {done_homework["description"]}', 
+        reply_markup=keyboard_commands_chat
+        )
     bot.delete_message(message.chat.id, message.message_id)
     bot.delete_message(message.chat.id, message.message_id - 1)
 
@@ -261,7 +343,7 @@ def view_homework_menu(message):
         user_unions = select_user_unions(user_id)
 
         if not user_unions:
-            bot.send_message(message.chat.id, "📭 У вас нет объединений.", reply_markup=get_homework_list_keyboard())
+            bot.send_message(message.chat.id, "📭 У вас нет объединений.", reply_markup=keyboard_commands)
             return
 
         group_names = set()
@@ -271,11 +353,10 @@ def view_homework_menu(message):
                 group_names.add(select_group(g)['name'])
 
         if not group_names:
-            bot.send_message(message.chat.id, "📭 Нет групп для просмотра.", reply_markup=get_homework_list_keyboard())
+            bot.send_message(message.chat.id, "📭 Нет групп для просмотра.", reply_markup=keyboard_commands)
             return
 
-        keyboard = get_homework_keyboard(sorted(group_names))
-        msg = bot.send_message(message.chat.id, "Выберите группу для просмотра ДЗ:", reply_markup=keyboard)
+        msg = bot.send_message(message.chat.id, "Выберите группу для просмотра ДЗ:", reply_markup=get_homework_keyboard(user_id))
         bot.register_next_step_handler(msg, show_homework_by_group_or_all)
     else:
         bot.send_message(message.chat.id, "❌ Эта функция доступна только в личных сообщениях.", reply_markup=keyboard_commands_chat)
@@ -283,6 +364,9 @@ def view_homework_menu(message):
 
 def show_homework_by_group_or_all(message):
     selected = message.text.strip()
+    if selected == "❌ Отмена":
+        send_welcome(message)
+        return
     user_tgId = message.from_user.id
     user_data = select_user(user_tgId)
 
@@ -291,51 +375,74 @@ def show_homework_by_group_or_all(message):
         return
 
     user_id = user_data['id']
+    homeworks = select_homeworks_by_user(user_id, is_archived=False)
 
-    homeworks = select_homeworks_by_user(user_id)
     if not homeworks:
-        bot.send_message(message.chat.id, "📭 У вас пока нет домашних заданий.", reply_markup=get_homework_list_keyboard())
+        bot.send_message(message.chat.id, "📭 У вас пока нет домашних заданий.", reply_markup=get_archive_keyboard())
         return
 
-    bot.send_message(message.chat.id, f"📘 Задания ({selected}):", reply_markup=get_homework_list_keyboard())
+    bot.send_message(message.chat.id, f"📘 Задания ({selected}):", reply_markup=keyboard_commands)
 
     if selected == "📚 Все задания":
-        # Группируем задания по группам
-        homework_by_group = {}
-
+        # Группируем задания по объединениям
+        homework_by_union = {}
         for hw in homeworks:
-            group_list = get_homework_groups(hw['id']) or ['Без группы']
-            for group_name in group_list:
-                if group_name not in homework_by_group:
-                    homework_by_group[group_name] = []
-                homework_by_group[group_name].append(hw)
+            unions = get_homework_unions(hw["id"])
+            for union in unions:
+                union_name = union["name"]
+                group_names = get_union_group_names(union["id"])
 
-        for group_name, hw_list in homework_by_group.items():
-            bot.send_message(message.chat.id, f"<b>📁 Группа:</b> {group_name}", reply_markup=keyboard_commands)
-            for hw in hw_list:
-                is_done = get_homework_status(hw['id'], user_id)
-                status_text = "✅ Выполнено" if is_done else "❌ Не выполнено"
-                text = f'''📌 <b>{hw["subject"]}</b>
+                key = (union_name, tuple(group_names))
+                if key not in homework_by_union:
+                    homework_by_union[key] = []
+                homework_by_union[key].append(hw)
+
+        if homework_by_union:
+            for (union_name, group_names), hw_list in homework_by_union.items():
+                groups_str = ", ".join(group_names)
+                bot.send_message(message.chat.id, f"<b>🧩 Объединение:</b> {union_name}\n<b>📁 Группы:</b> {groups_str}", reply_markup=keyboard_commands)
+                
+                for hw in hw_list:
+                    is_done = get_homework_status(hw['id'], user_id)
+                    status_text = "✅ Выполнено" if is_done else "❌ Не выполнено"
+                    text = f'''📌 <b>{hw["subject"]}</b>
 📅 Сдать до: {hw["due_date"].strftime("%d.%m.%Y")}
 📝 Описание: {hw["description"]}
 📊 Статус: {status_text}'''
-                bot.send_message(message.chat.id, text, reply_markup=create_keyboard_isDone(hw, is_done))
-    else:
-        # Фильтр по группе
-        found = False
+                    bot.send_message(message.chat.id, text, reply_markup=create_keyboard_isDone(hw, is_done))
+        else:
+            bot.send_message(message.chat.id, "❌ Нет заданий для отображения.", reply_markup=keyboard_commands)
+
+    elif selected.startswith("🧩"):
+        # Извлекаем название объединения из кнопки
+        union_name = selected.split("|")[0].replace("🧩", "").strip()
+
+        # Находим объединение по имени
+        union_data = select_union_by_name(union_name)
+        if not union_data:
+            bot.send_message(message.chat.id, "❌ Объединение не найдено.", reply_markup=keyboard_commands)
+            return
+
+        union_id = union_data['id']
+
+        # Получаем все задания этого объединения
+        homeworks = select_homeworks_by_union(union_id, user_id, is_archived=False)
+
+        if not homeworks:
+            bot.send_message(message.chat.id, "📭 Нет активных заданий для этого объединения.", reply_markup=keyboard_commands)
+            return
+
         for hw in homeworks:
-            group_list = get_homework_groups(hw['id'])
-            if selected in group_list:
-                is_done = get_homework_status(hw['id'], user_id)
-                status_text = "✅ Выполнено" if is_done else "❌ Не выполнено"
-                text = f'''📌 <b>{hw["subject"]}</b>
-📅 Сдать до: {hw["due_date"].strftime("%d.%m.%Y")}
-📝 Описание: {hw["description"]}
-📊 Статус: {status_text}'''
-                bot.send_message(message.chat.id, text, reply_markup=create_keyboard_isDone(hw, is_done))
-                found = True
-        if not found:
-            bot.send_message(message.chat.id, "❌ Не найдено заданий для этой группы.")
+            is_done = get_homework_status(hw['id'], user_id)
+            status_text = "✅ Выполнено" if is_done else "❌ Не выполнено"
+            text = f'''📌 <b>{hw["subject"]}</b>
+    📅 Сдать до: {hw["due_date"].strftime("%d.%m.%Y")}
+    📝 Описание: {hw["description"]}
+    📊 Статус: {status_text}'''
+            bot.send_message(message.chat.id, text, reply_markup=create_keyboard_isDone(hw, is_done))
+
+    bot.send_message(message.chat.id, f"🗂 Просмотреть задания в архиве", reply_markup=get_archive_keyboard())
+
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("toggle_hw_"))
 def toggle_homework_status(call):
@@ -405,9 +512,39 @@ def handle_archive_homework(call):
         message_id=call.message.message_id,
         reply_markup=None
     )
-    bot.send_message(user_tgId, "🗂 Задание перемещено в архив.")
 
     bot.answer_callback_query(call.id, "Задание отправлено в архив")
+
+@bot.callback_query_handler(func=lambda call: call.data == "archive_menu")
+def show_archive_menu(call):
+    message = call.message
+    bot.delete_message(message.chat.id, message.message_id)
+    user_tgId = message.chat.id
+    bot.answer_callback_query(call.id)
+    if message.chat.id > 0:  # Только в ЛС
+        user_data = select_user(user_tgId)
+        if not user_data:
+            bot.send_message(message.chat.id, "❌ Вы не зарегистрированы.", reply_markup=keyboard_commands)
+            return
+
+        user_id = user_data['id']
+        homeworks = select_homeworks_by_user(user_id, is_archived=True)
+
+        if not homeworks:
+            bot.send_message(message.chat.id, "📭 Ваш архив пуст.", reply_markup=keyboard_commands)
+            return
+
+        bot.send_message(message.chat.id, "<b>🗂 Архив заданий:</b>", reply_markup=keyboard_commands)
+        for hw in homeworks:
+            text = f'''📌 <b>{hw["subject"]}</b>
+📅 Сдать до: {hw["due_date"].strftime("%d.%m.%Y")}
+📝 Описание: {hw["description"]}'''
+            keyboard = telebot.types.InlineKeyboardMarkup()
+            keyboard.add(telebot.types.InlineKeyboardButton("↩️ Вернуть из архива", callback_data=f"unarchive_hw_{hw['id']}"))
+            bot.send_message(message.chat.id, text, reply_markup=keyboard)
+            bot.answer_callback_query(call.id)
+    else:
+        bot.send_message(message.chat.id, "❌ Эта функция доступна только в личных сообщениях.", reply_markup=keyboard_commands)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("unarchive_hw_"))
 def handle_unarchive_homework(call):
@@ -423,42 +560,21 @@ def handle_unarchive_homework(call):
     success = archive_homework(homework_id, user_id, is_archived=False)
 
     if not success:
-        bot.answer_callback_query(call.id, "❌ Не удалось вернуть задание.")
+        bot.answer_callback_query(call.id, "❌ Не удалось восстановить задание.")
         return
 
-    bot.edit_message_reply_markup(
+    done_homework = select_homework(homework_id)
+    updated_text = f'''📌 <b>{done_homework["subject"]}</b>
+📅 Сдать до: {done_homework["due_date"].strftime("%d.%m.%Y")}
+📝 Описание: {done_homework["description"]}'''
+
+    bot.edit_message_text(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
+        text=updated_text,
         reply_markup=None
     )
-    bot.send_message(user_tgId, "🔄 Задание возвращено из архива.")
-
-    bot.answer_callback_query(call.id, "Задание восстановлено")
-
-@bot.callback_query_handler(func=lambda call: call.data == "archive_menu")
-def handle_archive_menu(call):
-    show_archive(call.message)
-
-def show_archive(message):
-    user_tgId = message.chat.id
-    user_data = select_user(user_tgId)
-
-    if message.chat.id > 0 and user_data:
-        user_id = user_data['id']
-        homeworks = select_homeworks_by_user(user_id, is_archived=True)
-
-        if not homeworks:
-            bot.send_message(message.chat.id, "📭 Ваш архив пуст.")
-            return
-
-        bot.send_message(message.chat.id, "<b>🗂 Архив выполненных заданий:</b>")
-        for hw in homeworks:
-            text = f'''📌 <b>{hw["subject"]}</b>
-📅 Сдать до: {hw["due_date"].strftime("%d.%m.%Y")}
-📝 Описание: {hw["description"]}'''
-            bot.send_message(message.chat.id, text)
-    else:
-        bot.send_message(message.chat.id, "❌ Эта функция доступна только в личных сообщениях.")
+    bot.answer_callback_query(call.id, "🔄 Задание возвращено из архива")
 
 
 @bot.message_handler(content_types=['left_chat_member'])
@@ -477,7 +593,11 @@ def handle_left_member(message):
         try:
             bot.send_message(user.id, f"❌ Вы были удалены из объединения <b>{union_data['name']}</b>.")
         except Exception as e:
-            print("Не удалось отправить ЛС пользователю:", e)
+            print("Не удалось отправить ЛС пользователю:", e)        
+        try:
+            bot.send_message(message.chat.id, f"❌ Пользователь {select_user(user.id)['name']} был удален из объединения.")
+        except Exception as e:
+            print("Не удалось отправить уведомление об исключении:", e)
 
 
 def check_deadlines():
@@ -490,12 +610,18 @@ def check_deadlines():
             continue
 
         user_id = user_data['id']
-        homeworks = select_homeworks_by_user(user_id)
+
+        # Получаем только невыполненные и неархивированные задания
+        homeworks = select_homeworks_by_user(user_id, is_archived=False)
 
         deadlines_urgent = []
         deadlines_soon = []
 
         for hw in homeworks:
+            is_done = get_homework_status(hw['id'], user_id)
+            if is_done:
+                continue  # Пропускаем выполненные
+
             due_date = hw["due_date"].date()
             delta = (due_date - now).days
 
@@ -549,7 +675,7 @@ def remind_me(message):
         bot.send_message(message.chat.id, "❌ Эта команда доступна только в личных сообщениях.")
 
 @bot.message_handler(commands=["help"])
-def send_welcome(message):
+def send_help(message):
     bot.send_message(
         message.chat.id,
         "Список команд данного бота:\n\nstart - Начало работы\nhelp - Справка по командам бота и работе с ним\nabout - Информация об авторе",
@@ -576,7 +702,10 @@ def echo_all(message: telebot.types.Message):
             bot.send_message(message.chat.id, f"Эта команда только для чата групп.")
         else:
             user_id = message.from_user.id
-            if user_id not in select_union_users(union_id):
+            union_users = []
+            for um in select_union_users(select_union(union_id)['id']):
+                union_users.append(um['user_id'])
+            if select_user(user_id)['id'] in union_users:
                 bot.send_message(message.chat.id, f"Вы уже прикреплены!", reply_markup=keyboard_commands_chat)
             else:
                 if user_id not in select_users_tgId():
@@ -586,7 +715,7 @@ def echo_all(message: telebot.types.Message):
                     bot.send_message(message.chat.id, f"Пользователь {user_name} зарегистрирован и прикреплён успешно. Добро пожаловать в ЭДС!", reply_markup=keyboard_commands_chat)
                 else:
                     add_user_to_union(select_user(user_id)['id'], select_union(union_id)['id'])
-                    bot.send_message(message.chat.id, f"Пользователь {user_name} прикреплен успешно!", reply_markup=keyboard_commands_chat)
+                    bot.send_message(message.chat.id, f"Пользователь {select_user(message.from_user.id)['name']} прикреплен успешно!", reply_markup=keyboard_commands_chat)
     if message.text in ["⚙️ Параметры", "Параметры", "⚙️"]:
         union_message(message)
     if message.text in ["👤 Мой профиль", "👤 Профиль группы", "Мой профиль", "Профиль группы", "👤"]:

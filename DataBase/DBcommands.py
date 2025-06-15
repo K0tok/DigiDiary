@@ -66,8 +66,10 @@ def add_user_to_union(user_id, union_id):                               # При
         with db:
             unionMember = UnionMember(user_id = user_id, union_id = union_id)
             unionMember.save()
+            return True
     except Exception as e:
         print('add_user_to_union error:\n', e)  
+        return False
 
 def select_user_unions(user_id):                                        # Список объединений пользователя
     try:
@@ -159,7 +161,23 @@ def select_union(tgId):                                                  # По�
     except Exception as e:
         print('select_union error:\n', e)
         return []
+    
+def select_union_by_id(id):                                             # Поиск объединения
+    try:
+        with db:
+            return model_to_dict(Union.get(Union.id == id))
+    except Exception as e:
+        print('select_union_by_id error:\n', e)
+        return []
 
+def select_union_by_name(name):                                             # Поиск объединения
+    try:
+        with db:
+            return model_to_dict(Union.get(Union.name == name))
+    except Exception as e:
+        print('select_union_by_name error:\n', e)
+        return []
+    
 def select_unions_tgId():                                               # Список tgId всех объединений
     try: 
         with db:
@@ -184,6 +202,18 @@ def select_union_groups(union_id):                                      # Спи
         print('select_union_groups error:\n', e)  
         return []
 
+def get_union_group_names(union_id):
+    try:
+        group_ids = select_union_groups(union_id) 
+        if not group_ids:
+            return ["Без группы"]
+
+        group_names = [select_group(g)['name'] for g in group_ids]
+        return group_names
+    except Exception as e:
+        print("get_union_group_names error:\n", e)
+        return []
+    
 def add_union_to_group(union_id, group_id):                             # Привязка группы к объединению
     try:
         with db:
@@ -250,22 +280,42 @@ def select_homework(id):
 def select_homeworks_by_user(user_id, is_archived=False):
     try:
         with db:
+            # Получаем объединения пользователя
             user_unions = [u.union_id for u in UnionMember.select().where(UnionMember.user_id == user_id)]
             if not user_unions:
                 return []
 
+            # Получаем ID всех домашних заданий из этих объединений
             homework_relations = UnionHomeworks.select().where(UnionHomeworks.union_id.in_(user_unions))
             homework_ids = [hw.homework_id for hw in homework_relations]
             if not homework_ids:
                 return []
 
+            # Получаем статусы выполнения и архивации для пользователя
             statuses = HomeworkStatus.select().where(
-                (HomeworkStatus.user_id == user_id) &
-                (HomeworkStatus.is_archived == is_archived)
+                (HomeworkStatus.user_id == user_id)
             )
-            filtered_homework_ids = {s.homework_id for s in statuses}
 
-            homeworks = list(Homework.select().where(Homework.id.in_(filtered_homework_ids)).dicts())
+            status_dict = {status.homework_id: status for status in statuses}
+
+            filtered_homeworks = []
+            for homework_id in homework_ids:
+                status = status_dict.get(homework_id, None)
+
+                # Если статуса нет — считаем, что задание не архивировано
+                if status:
+                    if status.is_archived == is_archived:
+                        filtered_homeworks.append(homework_id)
+                else:
+                    # Новых заданий может не быть в архиве
+                    if is_archived == False:
+                        filtered_homeworks.append(homework_id)
+
+            # Выбираем только подходящие задания
+            if not filtered_homeworks:
+                return []
+
+            homeworks = list(Homework.select().where(Homework.id.in_(filtered_homeworks)).dicts())
             homeworks_sorted = sorted(homeworks, key=lambda x: x["due_date"])
             return homeworks_sorted
     except Exception as e:
@@ -285,6 +335,57 @@ def get_homework_groups(homework_id):
         return list(set(group_names)) 
     except Exception as e:
         print('get_homework_groups error:\n', e)
+        return []
+    
+def get_homework_unions(homework_id):
+    try:
+        with db:
+            hw_relations = UnionHomeworks.select().where(UnionHomeworks.homework_id == homework_id)
+            union_ids = [r.union_id for r in hw_relations]
+
+            if not union_ids:
+                return []
+
+            unions = list(Union.select().where(Union.id.in_(union_ids)).dicts())
+            return unions
+    except Exception as e:
+        print("get_homework_unions error:\n", e)
+        return []
+
+def select_homeworks_by_union(union_id, user_id=None, is_archived=False):
+    try:
+        with db:
+            # Получаем все ДЗ из объединения
+            relations = UnionHomeworks.select().where(UnionHomeworks.union_id == union_id)
+            homework_ids = [r.homework_id for r in relations]
+            if not homework_ids:
+                return []
+
+            # Если указан пользователь → фильтруем по его статусу
+            if user_id:
+                statuses = HomeworkStatus.select().where(
+                    (HomeworkStatus.homework_id.in_(homework_ids)) &
+                    (HomeworkStatus.user_id == user_id) &
+                    (HomeworkStatus.is_archived == is_archived)
+                )
+                filtered_ids = [s.homework_id for s in statuses]
+                homeworks = list(Homework.select().where(Homework.id.in_(filtered_ids)).dicts())
+            else:
+                homeworks = list(Homework.select().where(Homework.id.in_(homework_ids)).dicts())
+
+            homeworks_sorted = sorted(homeworks, key=lambda x: x["due_date"])
+            return homeworks_sorted
+    except Exception as e:
+        print('select_homeworks_by_union error:\n', e)
+        return []
+
+def get_homework_relations_by_union(union_id):
+    try:
+        with db:
+            relations = UnionHomeworks.select().where(UnionHomeworks.union_id == union_id).dicts()
+            return list(relations)
+    except Exception as e:
+        print("get_homework_relations_by_union error:\n", e)
         return []
     
 def delete_homework(homework_id):
